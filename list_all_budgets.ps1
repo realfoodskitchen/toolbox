@@ -1,5 +1,3 @@
-##List all Azure Bdgets across different subscrioptions
-
 # Install the necessary module if not already installed
 Install-Module -Name Az -AllowClobber -Force
 
@@ -12,8 +10,8 @@ Connect-AzAccount
 # Get a list of all subscriptions
 $subscriptions = Get-AzSubscription
 
-# Initialize an array to store budget details
-$allBudgets = @()
+# Initialize an array to store budget and alert details
+$allBudgetsWithAlerts = @()
 
 # Loop through each subscription
 foreach ($subscription in $subscriptions) {
@@ -23,12 +21,25 @@ foreach ($subscription in $subscriptions) {
     # Retrieve all budgets for the current subscription
     $budgets = Get-AzConsumptionBudget
 
-    # Add the retrieved budgets to the array
-    $allBudgets += $budgets
+    # Loop through each budget to include alert details
+    foreach ($budget in $budgets) {
+        # Create a custom object to store budget details with alerts
+        $budgetWithAlerts = [PSCustomObject]@{
+            SubscriptionId = $subscription.Id
+            BudgetName     = $budget.Name
+            Amount         = $budget.Amount
+            TimeGrain      = $budget.TimeGrain
+            Category       = $budget.Category
+            Alerts         = $budget.Notifications
+        }
+
+        # Add the budget with alerts to the array
+        $allBudgetsWithAlerts += $budgetWithAlerts
+    }
 }
 
-# Output the collected budget details
-$allBudgets | Format-Table -Property SubscriptionId,Name,Amount,TimeGrain,Category
+# Output the collected budget and alert details
+$allBudgetsWithAlerts | Format-Table -Property SubscriptionId, BudgetName, Amount, TimeGrain, Category, Alerts
 
-# Optionally, export the collected budgets to a CSV file
-$allBudgets | Export-Csv -Path "AllAzureBudgets.csv" -NoTypeInformation
+# Optionally, export the collected budgets with alerts to a CSV file
+$allBudgetsWithAlerts | Export-Csv -Path "AllAzureBudgetsWithAlerts.csv" -NoTypeInformation
