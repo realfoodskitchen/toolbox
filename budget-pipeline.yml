@@ -1,0 +1,45 @@
+trigger:
+  branches:
+    include:
+      - main
+
+parameters:
+  - name: budgetName
+    displayName: 'Budget Name'
+    type: string
+    default: 'MyBudget'
+
+  - name: subscriptionId
+    displayName: 'Azure Subscription ID'
+    type: string
+    default: '<Your-Subscription-ID>'
+
+  - name: resourceGroup
+    displayName: 'Resource Group Name'
+    type: string
+    default: '<Your-Resource-Group>'
+
+  - name: budgetAmount
+    displayName: 'Budget Amount (in USD)'
+    type: number
+    default: 1000
+
+  - name: timeGrain
+    displayName: 'Time Grain (e.g., Monthly, Quarterly)'
+    type: string
+    default: 'Monthly'
+
+  - name: emailAddress
+    displayName: 'Notification Email Address'
+    type: string
+    default: '<Your-Email>'
+
+jobs:
+  - template: azure-budget-deploy-template.yml
+    parameters:
+      budgetName: ${{ parameters.budgetName }}
+      subscriptionId: ${{ parameters.subscriptionId }}
+      resourceGroup: ${{ parameters.resourceGroup }}
+      budgetAmount: ${{ parameters.budgetAmount }}
+      timeGrain: ${{ parameters.timeGrain }}
+      emailAddress: ${{ parameters.emailAddress }}
