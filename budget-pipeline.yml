@@ -43,3 +43,76 @@ jobs:
       budgetAmount: ${{ parameters.budgetAmount }}
       timeGrain: ${{ parameters.timeGrain }}
       emailAddress: ${{ parameters.emailAddress }}
+
+trigger:
+  branches:
+    include:
+      - main
+
+parameters:
+  - name: budgetName
+    displayName: 'Budget Name'
+    type: string
+    default: 'MyBudget'
+
+  - name: subscriptionId
+    displayName: 'Azure Subscription ID'
+    type: string
+    default: '<Your-Subscription-ID>'
+
+  - name: resourceGroup
+    displayName: 'Resource Group Name'
+    type: string
+    default: '<Your-Resource-Group>'
+
+  - name: budgetAmount
+    displayName: 'Budget Amount (in USD)'
+    type: number
+    default: 1000
+
+  - name: timeGrain
+    displayName: 'Time Grain (e.g., Monthly, Quarterly, Annually)'
+    type: string
+    default: 'Monthly'
+
+  - name: actualNotificationsCount
+    displayName: 'Number of Actual Notifications'
+    type: number
+    default: 2
+
+  - name: forecastedNotificationsCount
+    displayName: 'Number of Forecasted Notifications'
+    type: number
+    default: 1
+
+  - name: actualNotifications
+    displayName: 'Actual Notifications (Threshold and Contact Emails)'
+    type: object
+    default:
+      - threshold: 90
+        operator: 'GreaterThan'
+        contactEmails: ['your-email@example.com']
+      - threshold: 95
+        operator: 'GreaterThan'
+        contactEmails: ['your-email@example.com']
+
+  - name: forecastedNotifications
+    displayName: 'Forecasted Notifications (Threshold and Contact Emails)'
+    type: object
+    default:
+      - threshold: 100
+        operator: 'GreaterThan'
+        contactEmails: ['your-email@example.com']
+
+jobs:
+  - template: template.yml
+    parameters:
+      budgetName: ${{ parameters.budgetName }}
+      subscriptionId: ${{ parameters.subscriptionId }}
+      resourceGroup: ${{ parameters.resourceGroup }}
+      budgetAmount: ${{ parameters.budgetAmount }}
+      timeGrain: ${{ parameters.timeGrain }}
+      actualNotificationsCount: ${{ parameters.actualNotificationsCount }}
+      forecastedNotificationsCount: ${{ parameters.forecastedNotificationsCount }}
+      actualNotifications: ${{ parameters.actualNotifications }}
+      forecastedNotifications: ${{ parameters.forecastedNotifications }}
