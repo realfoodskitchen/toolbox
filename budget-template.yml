@@ -1,0 +1,54 @@
+parameters:
+  - name: budgetName
+    type: string
+
+  - name: subscriptionId
+    type: string
+
+  - name: resourceGroup
+    type: string
+
+  - name: budgetAmount
+    type: number
+
+  - name: timeGrain
+    type: string
+
+  - name: emailAddress
+    type: string
+
+jobs:
+  - job: DeployBudget
+    displayName: 'Deploy Azure Budget'
+    pool:
+      vmImage: 'ubuntu-latest'
+
+    steps:
+      - task: AzureCLI@2
+        displayName: 'Create Azure Budget'
+        inputs:
+          azureSubscription: ${{ parameters.subscriptionId }}
+          scriptType: 'bash'
+          scriptLocation: 'inlineScript'
+          inlineScript: |
+            az consumption budget create \
+              --name ${{ parameters.budgetName }} \
+              --resource-group ${{ parameters.resourceGroup }} \
+              --amount ${{ parameters.budgetAmount }} \
+              --time-grain ${{ parameters.timeGrain }} \
+              --subscription ${{ parameters.subscriptionId }} \
+              --notifications-operation "GreaterThan" \
+              --notifications-threshold 80 \
+              --notifications-contact-emails ${{ parameters.emailAddress }}
+
+      - task: AzureCLI@2
+        displayName: 'Verify Budget Deployment'
+        inputs:
+          azureSubscription: ${{ parameters.subscriptionId }}
+          scriptType: 'bash'
+          scriptLocation: 'inlineScript'
+          inlineScript: |
+            az consumption budget show \
+              --name ${{ parameters.budgetName }} \
+              --resource-group ${{ parameters.resourceGroup }} \
+              --subscription ${{ parameters.subscriptionId }}
