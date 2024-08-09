@@ -1,0 +1,37 @@
+# Define variables
+$subscriptionId = "<Your-Subscription-ID>"
+$resourceGroupName = "<Your-Resource-Group>"
+$budgetName = "MyBudget"
+$amount = 1000  # Budget amount in USD
+$timeGrain = "Monthly"  # Time grain can be Monthly, Quarterly, or Annually
+$contactEmails = "your-email@example.com"
+
+# Create the budget with multiple alerts
+az consumption budget create `
+  --name $budgetName `
+  --resource-group $resourceGroupName `
+  --amount $amount `
+  --time-grain $timeGrain `
+  --subscription $subscriptionId `
+  --notifications '[{
+      "enabled": true,
+      "operator": "GreaterThan",
+      "threshold": 90,
+      "contactEmails": ["'$contactEmails'"],
+      "contactRoles": [],
+      "thresholdType": "Actual"
+    },{
+      "enabled": true,
+      "operator": "GreaterThan",
+      "threshold": 95,
+      "contactEmails": ["'$contactEmails'"],
+      "contactRoles": [],
+      "thresholdType": "Actual"
+    },{
+      "enabled": true,
+      "operator": "GreaterThan",
+      "threshold": 100,
+      "contactEmails": ["'$contactEmails'"],
+      "contactRoles": [],
+      "thresholdType": "Actual"
+    }]'
