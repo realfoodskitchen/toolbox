@@ -105,3 +105,56 @@ jobs:
                            forecastedNotificationsCount=${{ parameters.forecastedNotificationsCount }} \
                            actualNotifications='${{ parameters.actualNotifications }}' \
                            forecastedNotifications='${{ parameters.forecastedNotifications }}'
+
+parameters:
+  - name: budgetName
+    type: string
+
+  - name: subscriptionId
+    type: string
+
+  - name: resourceGroup
+    type: string
+
+  - name: budgetAmount
+    type: number
+
+  - name: timeGrain
+    type: string
+
+  - name: actualNotificationsCount
+    type: number
+
+  - name: forecastedNotificationsCount
+    type: number
+
+  - name: actualNotifications
+    type: object
+
+  - name: forecastedNotifications
+    type: object
+
+jobs:
+  - job: DeployBudget
+    displayName: 'Deploy Azure Budget'
+    pool:
+      vmImage: 'ubuntu-latest'
+
+    steps:
+      - task: AzureCLI@2
+        displayName: 'Deploy Budget with Bicep'
+        inputs:
+          azureSubscription: ${{ parameters.subscriptionId }}
+          scriptType: 'bash'
+          scriptLocation: 'inlineScript'
+          inlineScript: |
+            az deployment group create \
+              --resource-group ${{ parameters.resourceGroup }} \
+              --template-file budget.bicep \
+              --parameters budgetName=${{ parameters.budgetName }} \
+                           budgetAmount=${{ parameters.budgetAmount }} \
+                           timeGrain=${{ parameters.timeGrain }} \
+                           actualNotificationsCount=${{ parameters.actualNotificationsCount }} \
+                           forecastedNotificationsCount=${{ parameters.forecastedNotificationsCount }} \
+                           actualNotifications='${{ parameters.actualNotifications }}' \
+                           forecastedNotifications='${{ parameters.forecastedNotifications }}'
