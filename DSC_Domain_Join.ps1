@@ -1,14 +1,21 @@
+
+#Create a Key Vault and store the AD domain join account credentials (username and password) securely in it.
 az keyvault secret set --vault-name <YourKeyVaultName> --name "ADJoinUser" --value "<username>"
 az keyvault secret set --vault-name <YourKeyVaultName> --name "ADJoinPassword" --value "<password>"
 
+#Create the managed identity
 az identity create --name <IdentityName> --resource-group <ResourceGroupName> --location <Location>
 
+#Assign the managed identity to the virtual machine
 az vm identity assign --resource-group <ResourceGroupName> --name <VMName> --identity <IdentityName>
 
+#Enable RBAC for the key vault
 az keyvault update --name <YourKeyVaultName> --enable-rbac-authorization true
 
+#assign the key vault secrets user role to the managed identity
 az role assignment create --role "Key Vault Secrets User" --assignee <UAMIClientId> --scope "/subscriptions/<SubscriptionId>/resourceGroups/<ResourceGroupName>/providers/Microsoft.KeyVault/vaults/<YourKeyVaultName>"
 
+#DSC configuration script
 Configuration JoinDomain
 {
     param
@@ -44,6 +51,7 @@ Configuration JoinDomain
 
 JoinDomain -DomainName "yourdomain.com" -KeyVaultName "<YourKeyVaultName>" -VMIdentityClientId "<IdentityClientId>"
 
+#DSC configuration execution
 # Ensure Az modules are installed
 Install-Module -Name Az -AllowClobber -Force
 
