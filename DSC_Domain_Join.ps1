@@ -1,6 +1,8 @@
 az keyvault secret set --vault-name <YourKeyVaultName> --name "ADJoinUser" --value "<username>"
 az keyvault secret set --vault-name <YourKeyVaultName> --name "ADJoinPassword" --value "<password>"
 
+az identity create --name <IdentityName> --resource-group <ResourceGroupName> --location <Location>
+
 az vm identity assign --resource-group <ResourceGroupName> --name <VMName> --identity <IdentityName>
 
 az keyvault update --name <YourKeyVaultName> --enable-rbac-authorization true
