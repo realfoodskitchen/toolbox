@@ -26,11 +26,16 @@ To automate joining hundreds of Azure virtual machines (VMs) to your on-premises
    az keyvault secret set --vault-name <YourKeyVaultName> --name "AD-Password" --value "<YourADPassword>"
    ```
 
-3. **Assign the Azure VM Managed Identity access to Key Vault**:
+3. **Assign the Azure VM Managed Identity to Key Vault**:
    ```bash
    az vm identity assign --name <YourVMName> --resource-group <YourResourceGroup>
-   az keyvault set-policy --name <YourKeyVaultName> --object-id <VM-Managed-Identity-Object-ID> --secret-permissions get
-   ```
+
+4 ** assigned the correct RBAC role to the key vault
+	az role assignment create \
+  --assignee <VM-Managed-Identity-Object-ID> \
+  --role "Key Vault Secrets User" \
+  --scope /subscriptions/<YourSubscriptionId>/resourceGroups/<YourResourceGroup>/providers/Microsoft.KeyVault/vaults/<YourKeyVaultName>
+
 
 ### Step 3: **Create a DSC Configuration Script**
 
