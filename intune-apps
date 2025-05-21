@@ -1,42 +1,29 @@
-# Ensure Microsoft.Graph module is available
-Import-Module Microsoft.Graph -ErrorAction Stop
+Connect-MgGraph -Scopes `
+    "DeviceManagementManagedDevices.Read.All", `
+    "DeviceManagementApps.Read.All"
 
-# Authenticate to Microsoft Graph with required scopes
-Connect-MgGraph -Scopes "DeviceManagementManagedDevices.Read.All", "DeviceManagementApps.Read.All"
-
-# Get all managed devices
 $devices = Get-MgDeviceManagementManagedDevice -All
 
-# Prepare result collection
-$appReport = @()
+# CSV output file
+$csvPath = ".\PerDevice_ManagedApps_Report.csv"
+"DeviceName,UserPrincipalName,AppName,AppVersion,InstallState,Publisher" | Out-File -FilePath $csvPath -Encoding UTF8
 
-# Loop through each device
+# Loop through devices
 foreach ($device in $devices) {
-    Write-Host "Fetching apps for device: $($device.DeviceName)" -ForegroundColor DarkGray
+    Write-Host "Processing $($device.DeviceName)" -ForegroundColor Cyan
+
+    $uri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices/$($device.Id)/managedApps"
 
     try {
-        # Get installed applications for the current device
-        $apps = Get-MgDeviceManagementManagedDeviceManagedApp -ManagedDeviceId $device.Id -ErrorAction Stop
+        $appsResponse = Invoke-MgGraphRequest -Method GET -Uri $uri
+        $apps = $appsResponse.value
     } catch {
-        Write-Warning "Could not fetch apps for $($device.DeviceName): $_"
+        Write-Warning "Error fetching apps for $($device.DeviceName): $_"
         continue
     }
 
-    # Format app data per device
     foreach ($app in $apps) {
-        $appReport += [PSCustomObject]@{
-            DeviceName        = $device.DeviceName
-            UserPrincipalName = $device.UserPrincipalName
-            AppDisplayName    = $app.DisplayName
-            AppVersion        = $app.Version
-            InstallState      = $app.InstallState
-            Publisher         = $app.Publisher
-        }
+        "$($device.DeviceName),$($device.UserPrincipalName),$($app.DisplayName),$($app.Version),$($app.InstallState),$($app.Publisher)" |
+            Out-File -FilePath $csvPath -Append -Encoding UTF8
     }
 }
-
-# Export results to CSV
-$csvPath = ".\Intune_Device_Apps_Report.csv"
-$appReport | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-
-Write-Host "Report generated: $csvPath" -ForegroundColor Green
