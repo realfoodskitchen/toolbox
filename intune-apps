@@ -1,0 +1,42 @@
+# Ensure Microsoft.Graph module is available
+Import-Module Microsoft.Graph -ErrorAction Stop
+
+# Authenticate to Microsoft Graph with required scopes
+Connect-MgGraph -Scopes "DeviceManagementManagedDevices.Read.All", "DeviceManagementApps.Read.All"
+
+# Get all managed devices
+$devices = Get-MgDeviceManagementManagedDevice -All
+
+# Prepare result collection
+$appReport = @()
+
+# Loop through each device
+foreach ($device in $devices) {
+    Write-Host "Fetching apps for device: $($device.DeviceName)" -ForegroundColor DarkGray
+
+    try {
+        # Get installed applications for the current device
+        $apps = Get-MgDeviceManagementManagedDeviceManagedApp -ManagedDeviceId $device.Id -ErrorAction Stop
+    } catch {
+        Write-Warning "Could not fetch apps for $($device.DeviceName): $_"
+        continue
+    }
+
+    # Format app data per device
+    foreach ($app in $apps) {
+        $appReport += [PSCustomObject]@{
+            DeviceName        = $device.DeviceName
+            UserPrincipalName = $device.UserPrincipalName
+            AppDisplayName    = $app.DisplayName
+            AppVersion        = $app.Version
+            InstallState      = $app.InstallState
+            Publisher         = $app.Publisher
+        }
+    }
+}
+
+# Export results to CSV
+$csvPath = ".\Intune_Device_Apps_Report.csv"
+$appReport | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
+
+Write-Host "Report generated: $csvPath" -ForegroundColor Green
