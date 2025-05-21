@@ -1,35 +1,50 @@
+# 1. Connect to Microsoft Graph
 Connect-MgGraph -Scopes `
     "DeviceManagementManagedDevices.Read.All", `
     "DeviceManagementApps.Read.All", `
     "DeviceManagementConfiguration.Read.All"
 
-# Output folders
-$masterCsv = ".\All_Devices_AppInventory.csv"
-$deviceCsvFolder = ".\PerDeviceReports"
+# 2. Submit the Export Job for userAppInventory
+$jobBody = @{
+    reportName = "userAppInventory"
+    format     = "csv"
+    reportType = "app"
+} | ConvertTo-Json -Depth 3
 
-# Create the folder if it doesn't exist
-if (-not (Test-Path $deviceCsvFolder)) {
-    New-Item -Path $deviceCsvFolder -ItemType Directory | Out-Null
+$exportJob = Invoke-MgGraphRequest -Method POST `
+    -Uri "https://graph.microsoft.com/beta/deviceManagement/reports/exportJobs" `
+    -Body $jobBody `
+    -ContentType "application/json"
+
+$jobId = $exportJob.id
+Write-Host "Job submitted: $jobId" -ForegroundColor Green
+
+# 3. Poll the export job until it's completed
+$jobUri = "https://graph.microsoft.com/beta/deviceManagement/reports/exportJobs/$jobId"
+do {
+    Start-Sleep -Seconds 5
+    $jobStatus = Invoke-MgGraphRequest -Method GET -Uri $jobUri
+    Write-Host "Waiting... Job status: $($jobStatus.status)"
+} while ($jobStatus.status -ne "completed")
+
+# 4. Download the report
+$downloadUrl = $jobStatus.url
+$masterCsv = ".\userAppInventory_Master.csv"
+Invoke-WebRequest -Uri $downloadUrl -OutFile $masterCsv
+Write-Host "Master report saved to: $masterCsv" -ForegroundColor Cyan
+
+# 5. Load the CSV
+$appData = Import-Csv $masterCsv
+
+# 6. Export per-device reports
+$perDeviceFolder = ".\userAppInventory_PerDevice"
+if (-not (Test-Path $perDeviceFolder)) {
+    New-Item -Path $perDeviceFolder -ItemType Directory | Out-Null
 }
 
-# Call the devicesByAppINV report
-$response = Invoke-MgGraphRequest -Method POST -Uri "https://graph.microsoft.com/beta/deviceManagement/reports/devicesByAppINV"
-
-# Convert CSV text to PowerShell objects
-$appInventory = $response | ConvertFrom-Csv
-
-# Save master report
-$appInventory | Export-Csv -Path $masterCsv -NoTypeInformation -Encoding UTF8
-Write-Host "Master inventory saved: $masterCsv" -ForegroundColor Green
-
-# Group by device and export per-device CSVs
-$appInventory | Group-Object DeviceName | ForEach-Object {
+$appData | Group-Object DeviceName | ForEach-Object {
     $deviceName = $_.Name -replace '[\\/:*?"<>|]', '_'  # Sanitize file name
-    $deviceFile = Join-Path $deviceCsvFolder "$deviceName.csv"
-
-    $_.Group | Export-Csv -Path $deviceFile -NoTypeInformation -Encoding UTF8
-    Write-Host "Device report saved: $deviceFile"
+    $filePath = Join-Path $perDeviceFolder "$deviceName.csv"
+    $_.Group | Export-Csv -Path $filePath -NoTypeInformation -Encoding UTF8
+    Write-Host "Exported: $filePath"
 }
-
-Write-Host "`nAll done! Per-device reports exported to: $deviceCsvFolder" -ForegroundColor Cyan
-
