@@ -1,29 +1,35 @@
 Connect-MgGraph -Scopes `
     "DeviceManagementManagedDevices.Read.All", `
-    "DeviceManagementApps.Read.All"
+    "DeviceManagementApps.Read.All", `
+    "DeviceManagementConfiguration.Read.All"
 
-$devices = Get-MgDeviceManagementManagedDevice -All
+# Output folders
+$masterCsv = ".\All_Devices_AppInventory.csv"
+$deviceCsvFolder = ".\PerDeviceReports"
 
-# CSV output file
-$csvPath = ".\PerDevice_ManagedApps_Report.csv"
-"DeviceName,UserPrincipalName,AppName,AppVersion,InstallState,Publisher" | Out-File -FilePath $csvPath -Encoding UTF8
-
-# Loop through devices
-foreach ($device in $devices) {
-    Write-Host "Processing $($device.DeviceName)" -ForegroundColor Cyan
-
-    $uri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices/$($device.Id)/managedApps"
-
-    try {
-        $appsResponse = Invoke-MgGraphRequest -Method GET -Uri $uri
-        $apps = $appsResponse.value
-    } catch {
-        Write-Warning "Error fetching apps for $($device.DeviceName): $_"
-        continue
-    }
-
-    foreach ($app in $apps) {
-        "$($device.DeviceName),$($device.UserPrincipalName),$($app.DisplayName),$($app.Version),$($app.InstallState),$($app.Publisher)" |
-            Out-File -FilePath $csvPath -Append -Encoding UTF8
-    }
+# Create the folder if it doesn't exist
+if (-not (Test-Path $deviceCsvFolder)) {
+    New-Item -Path $deviceCsvFolder -ItemType Directory | Out-Null
 }
+
+# Call the devicesByAppINV report
+$response = Invoke-MgGraphRequest -Method POST -Uri "https://graph.microsoft.com/beta/deviceManagement/reports/devicesByAppINV"
+
+# Convert CSV text to PowerShell objects
+$appInventory = $response | ConvertFrom-Csv
+
+# Save master report
+$appInventory | Export-Csv -Path $masterCsv -NoTypeInformation -Encoding UTF8
+Write-Host "Master inventory saved: $masterCsv" -ForegroundColor Green
+
+# Group by device and export per-device CSVs
+$appInventory | Group-Object DeviceName | ForEach-Object {
+    $deviceName = $_.Name -replace '[\\/:*?"<>|]', '_'  # Sanitize file name
+    $deviceFile = Join-Path $deviceCsvFolder "$deviceName.csv"
+
+    $_.Group | Export-Csv -Path $deviceFile -NoTypeInformation -Encoding UTF8
+    Write-Host "Device report saved: $deviceFile"
+}
+
+Write-Host "`nAll done! Per-device reports exported to: $deviceCsvFolder" -ForegroundColor Cyan
+
