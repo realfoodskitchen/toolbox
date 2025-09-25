@@ -1,0 +1,193 @@
+# ============================================
+
+# enable-jit-ssh-bulk.azcli
+
+# Configure Arc-SSH + PIM roles across all Arc Linux machines in a resource group
+
+# ============================================
+
+# — Variables (edit these) —
+
+SUBSCRIPTION=”<your-subscription-id>”
+RG=”<your-resource-group>”
+LOCATION=“eastus”
+
+# ============================================
+
+# — Login and set subscription —
+
+az login
+az account set –subscription $SUBSCRIPTION
+
+# — Ensure required CLI extensions —
+
+echo “Installing required extensions…”
+az extension add –name ssh –only-show-errors
+az extension add –name connectedmachine –only-show-errors
+
+# — Register provider (one-time per subscription) —
+
+echo “Registering HybridConnectivity provider…”
+az provider register -n Microsoft.HybridConnectivity
+
+# Wait for provider registration to complete
+
+echo “Waiting for provider registration…”
+while [ “$(az provider show -n Microsoft.HybridConnectivity –query ‘registrationState’ -o tsv)” != “Registered” ]; do
+echo “Provider registration in progress…”
+sleep 10
+done
+echo “✅ Provider registered successfully”
+
+# — Get all Arc-enabled machines in the resource group —
+
+echo “Discovering Arc-enabled Linux machines in resource group: $RG”
+MACHINES=$(az connectedmachine list -g $RG –query “[?osName==‘Linux’ && status==‘Connected’].name” -o tsv)
+
+if [ -z “$MACHINES” ]; then
+echo “❌ No connected Arc-enabled Linux machines found in resource group: $RG”
+exit 1
+fi
+
+echo “Found $(echo “$MACHINES” | wc -w) connected Arc Linux machines”
+
+for MACHINE in $MACHINES; do
+echo “–––––––––––––––––––”
+echo “Processing Arc machine: $MACHINE”
+echo “–––––––––––––––––––”
+
+# Check if machine is connected
+
+STATUS=$(az connectedmachine show -g $RG -n $MACHINE –query “status” -o tsv 2>/dev/null)
+if [ “$STATUS” != “Connected” ]; then
+echo “⚠️  Skipping $MACHINE - Status: $STATUS”
+continue
+fi
+
+# — Create default Arc connectivity endpoint —
+
+echo “Ensuring default endpoint exists…”
+ENDPOINT_RESULT=$(az rest –method put   
+–uri “https://management.azure.com/subscriptions/$SUBSCRIPTION/resourceGroups/$RG/providers/Microsoft.HybridCompute/machines/$MACHINE/providers/Microsoft.HybridConnectivity/endpoints/default?api-version=2023-03-15”   
+–body ‘{“properties”:{“type”:“default”}}’   
+–only-show-errors 2>&1)
+
+if [ $? -eq 0 ]; then
+echo “✅ Default endpoint configured”
+else
+echo “❌ Failed to configure endpoint for $MACHINE: $ENDPOINT_RESULT”
+continue
+fi
+
+# — Configure SSH service on the endpoint —
+
+echo “Configuring SSH service (port 22)…”
+SSH_CONFIG_RESULT=$(az rest –method put   
+–uri “https://management.azure.com/subscriptions/$SUBSCRIPTION/resourceGroups/$RG/providers/Microsoft.HybridCompute/machines/$MACHINE/providers/Microsoft.HybridConnectivity/endpoints/default/serviceconfigurations/SSH?api-version=2023-03-15”   
+–body ‘{“properties”:{“serviceName”:“SSH”,“port”:22}}’   
+–only-show-errors 2>&1)
+
+if [ $? -eq 0 ]; then
+echo “✅ SSH service configured”
+else
+echo “❌ Failed to configure SSH service for $MACHINE: $SSH_CONFIG_RESULT”
+continue
+fi
+
+# Check if AADSSHLogin extension already exists
+
+EXISTING_EXTENSION=$(az connectedmachine extension show   
+–machine-name $MACHINE   
+–resource-group $RG   
+–name AADSSHLoginForLinux   
+–query “name” -o tsv 2>/dev/null)
+
+if [ -n “$EXISTING_EXTENSION” ]; then
+echo “✅ AADSSHLogin extension already installed”
+else
+# — Install AADSSHLogin extension —
+echo “Installing AADSSHLogin extension…”
+EXTENSION_RESULT=$(az connectedmachine extension create   
+–machine-name $MACHINE   
+–resource-group $RG   
+–publisher Microsoft.Azure.ActiveDirectory   
+–name AADSSHLoginForLinux   
+–type AADSSHLoginForLinux   
+–location $LOCATION   
+–only-show-errors 2>&1)
+
+```
+if [ $? -eq 0 ]; then
+  echo "✅ AADSSHLogin extension installed"
+else
+  echo "❌ Failed to install extension for $MACHINE: $EXTENSION_RESULT"
+  continue
+fi
+```
+
+fi
+
+echo “✅ Completed setup for $MACHINE”
+done
+
+echo “======================================”
+echo “All Arc Linux machines in $RG processed.”
+echo “======================================”
+
+# ============================================
+
+# NEXT STEPS (outside azcli):
+
+# 
+
+# 1. RBAC ROLES (Required for SSH access):
+
+# Configure these roles on each Arc machine or resource group:
+
+# - “Virtual Machine Administrator Login” (full sudo access)
+
+# - “Virtual Machine User Login” (standard user access)
+
+# 
+
+# 2. PIM SETUP (For Just-In-Time access):
+
+# In Entra ID > Privileged Identity Management:
+
+# - Make users/groups eligible for the above roles
+
+# - Configure approval workflows, MFA requirements
+
+# - Set activation duration (1-8 hours typically)
+
+# - Enable activation notifications
+
+# 
+
+# 3. USER CONNECTION:
+
+# Users activate their PIM role, then connect with:
+
+# az ssh arc –resource-group $RG –name <MachineName>
+
+# 
+
+# 4. MONITORING (Recommended):
+
+# - Enable Azure Monitor for Arc machines
+
+# - Set up alerts for failed SSH attempts
+
+# - Review PIM activation logs regularly
+
+# 
+
+# 5. SECURITY CONSIDERATIONS:
+
+# - Ensure Arc agents are up to date
+
+# - Review and limit network connectivity rules
+
+# - Consider conditional access policies
+
+# ============================================
