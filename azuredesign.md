@@ -1,1123 +1,418 @@
-You are acting as a senior Azure cloud architect, Azure governance engineer, Python developer, PowerShell developer, and technical documentation specialist.
-
-I need you to build a complete, maintainable Azure architecture inventory and reporting solution for an enterprise Azure tenant.
-
-Objective
-
-Create a local toolchain that inventories our Azure tenant and automatically produces technical architecture artifacts suitable for:
+I need you to help me create an architectural overview of our current Azure tenant for a senior-management technical briefing.
 
-1. Senior-management technical briefings
-2. Azure architecture documentation
-3. Engineering reference material
-4. Periodic regeneration as the Azure environment changes
+The goal is to document:
 
-The solution should treat Azure as the authoritative source of truth. Do not require me to manually maintain management-group, subscription, resource, networking, policy, or security diagrams.
+* How the Azure tenant is organized
+* The management-group hierarchy
+* The subscriptions under each management group
+* The major Azure systems and services currently deployed
+* How those services are actually being used in our environment
+* Which Azure services are currently approved for organizational use, including approved services that may not currently be deployed
+* A small number of clear architecture diagrams and summary charts suitable for a PowerPoint briefing
 
-The solution should collect Azure configuration and inventory data, normalize it locally, and generate:
+This should be an architectural overview, not a detailed asset inventory.
 
-* Executive Azure tenant architecture diagram
-* Detailed management-group/subscription hierarchy diagram
-* Azure estate dashboard
-* Resource inventory charts
-* Governance/security summary
-* Networking summary
-* Markdown technical report
-* Self-contained HTML report
-* SVG and PNG assets suitable for importing into PowerPoint
-
-GitHub Copilot is approved for use with sensitive information in this environment, so do not unnecessarily anonymize Azure tenant names, subscription names, management groups, resource names, IDs, or other Azure configuration information.
-
-However, do not output secrets, access tokens, certificates, passwords, connection strings, storage keys, client secrets, private keys, or Key Vault secret values.
-
-⸻
-
-Architecture
-
-Build the project using:
-
-* PowerShell for orchestration and Azure data collection
-* Azure CLI where appropriate
-* Azure Resource Graph for large-scale Azure resource queries
-* Python for data normalization, analysis, visualization, and report generation
-* Graphviz for hierarchical architecture diagrams
-* Mermaid where useful for Markdown documentation
-* Plotly for charts and interactive HTML visualization
-* Jinja2 for HTML report templating if appropriate
-
-Prefer standard, well-supported libraries.
-
-The entire solution should run locally after authentication with Azure CLI.
-
-Assume:
-
-az login
-
-has already been performed.
+General approach
 
-The implementation should use the currently authenticated Azure identity and only collect resources the identity is authorized to read.
+Use the Azure CLI and Azure Resource Graph to inspect the currently authenticated Azure tenant.
 
-Do not use interactive prompts during normal report generation.
+Treat Azure as the source of truth for what is currently deployed.
 
-⸻
+Do not retrieve or display secrets, credentials, keys, tokens, certificates, connection strings, or Key Vault secret values.
 
-Desired repository structure
+Create a lightweight local report using Python.
 
-Create a clean repository similar to:
+I would prefer the output to be a self-contained HTML report, with diagrams and charts that can also be exported as PNG or SVG for use in PowerPoint.
 
-azure-architecture-report/
-│
-├── README.md
-├── requirements.txt
-├── .gitignore
-│
-├── config/
-│   └── report-config.json
-│
-├── scripts/
-│   ├── Build-AzureBriefing.ps1
-│   ├── Collect-AzureInventory.ps1
-│   └── generate_report.py
-│
-├── queries/
-│   ├── resources.kql
-│   ├── resource-types.kql
-│   ├── regions.kql
-│   ├── networking.kql
-│   ├── compute.kql
-│   ├── storage.kql
-│   ├── keyvaults.kql
-│   └── policy-summary.kql
-│
-├── templates/
-│   └── report.html.j2
-│
-├── data/
-│   ├── raw/
-│   └── normalized/
-│
-└── output/
-    ├── diagrams/
-    ├── charts/
-    ├── reports/
-    └── data/
+Use Graphviz or Mermaid for architecture diagrams and Plotly for charts where appropriate.
 
-Modify the structure if you have a technically superior design, but keep collection, normalization, presentation, configuration, and output clearly separated.
+What I want you to discover
 
-⸻
+1. Tenant structure
 
-Primary orchestration command
+Discover and document:
 
-I ultimately want to generate everything with one command:
+* Azure tenant
+* Tenant root management group
+* Management-group hierarchy
+* Subscriptions underneath each management group
 
-.\scripts\Build-AzureBriefing.ps1
+Produce a clean architecture diagram showing:
 
-The script should:
+Tenant → Management Groups → Subscriptions
 
-1. Validate prerequisites.
-2. Verify Azure CLI authentication.
-3. Determine the Azure tenant.
-4. Collect tenant and subscription inventory.
-5. Collect management-group hierarchy.
-6. Query Azure Resource Graph.
-7. Collect policy/governance information where accessible.
-8. Collect networking information.
-9. Normalize collected data.
-10. Generate architecture diagrams.
-11. Generate charts.
-12. Generate an interactive HTML report.
-13. Generate a Markdown technical report.
-14. Export PowerPoint-ready images.
-15. Print a concise summary showing where the generated artifacts were written.
+Do not include individual Azure resources in this diagram.
 
-Use clear logging such as:
+This should be readable on a presentation slide.
 
-[1/10] Validating prerequisites
-[2/10] Reading Azure tenant information
-[3/10] Collecting management groups
-[4/10] Collecting subscriptions
-[5/10] Querying Azure Resource Graph
-[6/10] Normalizing inventory
-[7/10] Generating architecture diagrams
-[8/10] Generating charts
-[9/10] Building HTML report
-[10/10] Complete
+Also produce a second, more detailed management-group/subscription hierarchy diagram if necessary.
 
-Return a nonzero exit code when a fatal error occurs.
+2. Major Azure services currently in use
 
-Individual optional data sources should fail gracefully where possible.
+Use Azure Resource Graph to determine which Azure resource types and major Azure services are actually deployed.
 
-For example, lack of permissions to inspect a particular governance dataset should not prevent the rest of the report from being generated.
+Group individual resource types into understandable Azure service categories.
 
-⸻
+Examples may include:
 
-Data collection requirements
+* Azure Virtual Machines
+* Azure Virtual Networks
+* Azure Firewall
+* Private Endpoints
+* ExpressRoute
+* VPN Gateway
+* Azure Application Gateway
+* Azure Load Balancer
+* Azure DNS / Private DNS
+* Azure Storage
+* Azure Key Vault
+* Azure SQL
+* Azure Cosmos DB
+* Azure App Service
+* Azure Functions
+* Azure Kubernetes Service
+* Azure Container Registry
+* Log Analytics
+* Azure Monitor
+* Application Insights
+* Microsoft Sentinel
+* Microsoft Defender for Cloud
+* Azure Automation
+* Recovery Services Vault
+* API Management
+* Service Bus
+* Event Hubs
 
-1. Tenant
+Only include services in the “currently deployed” section if they are actually present in the tenant.
 
-Collect basic Azure tenant information available from Azure CLI, including where possible:
+Do not produce a giant list of every Azure resource type.
 
-* Tenant ID
-* Tenant display information
-* Current authenticated account
-* Azure cloud/environment
-* Number of visible subscriptions
+Group related resources into meaningful architectural services.
 
-Do not collect authentication tokens.
+3. Ask me for the currently approved Azure services
 
-⸻
+After discovering the services that are currently deployed, stop and ask me to provide the authoritative list of Azure services that are currently approved for use in the organization.
 
-2. Management Groups
+Do not attempt to infer approval status from deployment.
 
-Automatically discover the complete management-group hierarchy visible to the authenticated user.
+A service being deployed does not necessarily mean it is generally approved, and an approved service may not currently be deployed.
 
-Capture at minimum:
+Ask me to provide the approved-services list in whatever form is easiest, such as:
 
-managementGroupId
-displayName
-parentManagementGroupId
-depth
-children
-subscriptions
+* Pasted text
+* Markdown list
+* CSV-style list
+* Existing service catalog
+* Copied table
 
-Preserve the hierarchy.
+If useful, first show me the Azure services you discovered so I can compare the deployed-service list against the approved-service list.
 
-Do not assume management groups have a fixed depth.
+Treat my approved-services list as the authoritative source for approval status.
 
-Support arbitrary nesting.
+Create a comparison between:
 
-Identify the tenant root management group when accessible.
+1. Approved and currently deployed
+2. Approved but not currently deployed
+3. Currently deployed but not present on the approved-services list
+4. Approval status unclear
 
-⸻
+Do not automatically characterize category 3 as noncompliant or unauthorized.
 
-3. Subscriptions
+Instead, flag it as:
 
-Collect all accessible subscriptions.
+“Deployed service not found in provided approved-services list”
 
-Capture at minimum:
+and allow me to clarify whether the approved-services list is incomplete, the service is grandfathered, specifically authorized, or otherwise permitted.
 
-subscriptionId
-subscriptionName
-tenantId
-state
-managementGroupId
-managementGroupName
+4. Interview me about how each major deployed service is being used
 
-If subscription tags or metadata can provide useful environment classification, capture them.
+Do not try to infer the business or operational purpose of each service solely from Azure Resource Graph.
 
-Attempt to classify subscriptions into categories such as:
+After discovering the major Azure services in use, ask me targeted questions about how those services are actually used in our environment.
 
-Production
-NonProduction
-Development
-Test
-Sandbox
-Platform
-Connectivity
-Identity
-Management
-Security
-Shared Services
-Unknown
+Your questions should help capture the context needed to write accurate senior-management descriptions.
 
-Do not rely exclusively on names.
+Ask questions in logical groups rather than one resource at a time.
 
-Use configurable matching rules in:
+For each major service or service category, determine things such as:
 
-config/report-config.json
+* What is this service used for in our environment?
+* Is it a shared enterprise service, a platform service, or workload-specific?
+* Which teams or workloads depend on it?
+* Is it centrally managed or managed by individual application teams?
+* Is it production, non-production, or both?
+* Is it part of a broader architectural pattern such as centralized networking, shared security, centralized logging, or application hosting?
+* Is it a strategic platform service or primarily supporting a specific legacy or niche workload?
+* Are there important dependencies or integrations that senior management should understand?
+* Is there anything noteworthy about why this service was selected or how it fits into the Azure architecture?
 
-If classification is uncertain, use Unknown.
+Do not ask questions for services where the answer is obvious and not important to the briefing.
 
-Never invent classifications.
+Prioritize services that materially affect the architecture.
 
-⸻
+For example, if you discover:
 
-4. Azure Resource Graph
+* Azure Firewall
+* ExpressRoute
+* Private DNS
+* Sentinel
+* Log Analytics
+* Key Vault
+* App Service
+* Azure SQL
+* Virtual Machines
 
-Use Azure Resource Graph as the primary resource inventory mechanism.
+ask focused questions such as:
 
-Collect enough information to support analysis including:
+* Is Azure Firewall providing centralized ingress/egress inspection for the tenant or only for specific environments?
+* Is ExpressRoute the primary connectivity path between Azure and on-premises infrastructure?
+* Are Private DNS Zones centrally managed for private endpoint resolution?
+* Is Sentinel the organization’s primary cloud SIEM, and which logs are being sent to it?
+* Are Log Analytics workspaces centralized or distributed by workload?
+* Are Key Vaults generally application-specific or centrally managed?
+* What types of applications are hosted on App Service?
+* Are Azure SQL resources supporting internal applications, commercial products, or shared services?
+* Are Virtual Machines primarily infrastructure services, application servers, legacy workloads, or administrative systems?
 
-id
-name
-type
-location
-resourceGroup
-subscriptionId
-kind
-sku
-tags
+Ask me these questions before generating the final service descriptions.
 
-Do not attempt to retrieve secrets or resource contents.
+5. Use my answers as the authoritative source for service purpose
 
-Create useful Resource Graph queries that summarize:
+After I answer your questions, combine:
 
-* total resources
-* resources per subscription
-* resources per management group
-* resources by type
-* resources by region
-* resource groups per subscription
-* resources by environment classification
+1. Azure-discovered technical facts
+2. My explanation of how the service is used
+3. My approved-services list
 
-Also collect detailed data needed for additional reporting.
+to generate the final descriptions.
 
-⸻
+Azure should be authoritative for what exists and where it is deployed.
 
-5. Networking
+My answers should be authoritative for why it exists, what it supports, how the organization uses it, and whether the service is approved.
 
-Inventory major Azure networking components.
+Do not invent organizational intent or approval status.
 
-At minimum detect:
+If my answer conflicts with what Azure appears to show, flag the discrepancy and ask me to clarify before including it in the final report.
 
-* Virtual Networks
-* Subnets
+6. Generate management-facing service descriptions
+
+For each major deployed service, create a concise description suitable for senior management.
+
+Each description should generally cover:
+
+* What the service is
+* How we use it
+* Where it fits in the architecture
+* What it supports or enables
+* Its approval status, where useful
+
+Avoid generic Microsoft product descriptions unless necessary.
+
+Prefer descriptions specific to our environment.
+
+Keep most service descriptions to approximately 2–4 sentences.
+
+The tone should be technical but understandable to senior management.
+
+7. Determine architectural patterns
+
+Look for recognizable patterns in the environment, such as:
+
+* Hub-and-spoke networking
+* Centralized connectivity subscription
+* Shared-services subscription
+* Centralized logging
+* Centralized security monitoring
+* Platform subscriptions
+* Production vs non-production subscription separation
+* Private endpoint usage
+* Central DNS
+* ExpressRoute connectivity
+* Landing-zone style management-group organization
+
+Use Azure data to identify possible patterns, then ask me to confirm the important ones before presenting them as fact.
+
+8. Networking overview
+
+Create a high-level networking summary showing major components such as:
+
+* VNets
 * VNet peerings
 * Azure Firewall
-* Firewall Policies
-* Network Security Groups
-* Route Tables
-* Public IP Addresses
+* ExpressRoute
+* VPN gateways
+* Virtual WAN / Virtual Hubs
+* Application Gateways
 * Private Endpoints
 * Private DNS Zones
-* VPN Gateways
-* ExpressRoute Gateways
-* ExpressRoute Circuits
-* Application Gateways
-* Load Balancers
-* NAT Gateways
-* Bastion
-* DNS Private Resolvers
-* Virtual WAN
-* Virtual Hubs
+* Public IPs
 
-Collect relationships where they can be reliably inferred from Resource Graph or Azure APIs.
+Where relationships can be reliably determined, create a simplified network architecture diagram.
 
-Do not create false topology relationships.
+Do not attempt to show every subnet or every individual endpoint.
 
-Where a connection cannot be conclusively determined, report the resources without inventing connectivity.
+The diagram should explain the architecture rather than serve as a complete network inventory.
 
-⸻
+Before finalizing the network narrative, ask me to confirm the major connectivity model and the purpose of the key networking services.
 
-6. Compute and platform services
+9. Security and governance overview
 
-Inventory useful high-level counts for:
+At a high level, identify major Azure governance and security capabilities currently in use, such as:
 
-* Virtual Machines
-* Virtual Machine Scale Sets
-* App Services
-* Function Apps
-* AKS clusters
-* Container Apps
-* Container Registries
-* SQL resources
-* Cosmos DB
-* Storage Accounts
-* Key Vaults
-* Log Analytics Workspaces
-* Automation Accounts
-* Recovery Services Vaults
-* API Management
-* Event Hubs
-* Service Bus
-* Application Insights
-
-This is not intended to exhaustively document every configuration property.
-
-Focus on information useful for understanding the estate.
-
-⸻
-
-7. Governance
-
-Where authorized, collect information about:
-
-* Azure Policy assignments
-* Policy initiatives
-* Policy exemptions
-* Management-group policy scope
-* Subscription policy scope
-
-Generate useful summary statistics such as:
-
-Number of policy assignments
-Number assigned at management-group scope
-Number assigned at subscription scope
-Assignments by major management group
-
-If policy compliance data is available without excessive runtime, include it.
-
-Clearly distinguish:
-
-Policy assignment inventory
-
-from:
-
-Policy compliance results
-
-Do not claim an environment is compliant merely because policies are assigned.
-
-⸻
-
-8. RBAC
-
-Where authorized, provide high-level RBAC information.
-
-Do NOT generate a giant listing of every user permission in the primary report.
-
-Instead provide useful architectural statistics such as:
-
-* Role assignments by scope
-* Role assignments at tenant/root management-group level if accessible
-* Management-group assignments
-* Subscription-level assignments
-* Count of Owner assignments
-* Count of User Access Administrator assignments
-* Count of Contributor assignments
-* Custom role count
-
-Keep detailed RBAC export as an optional data file.
-
-Do not expose unnecessary personal information in the executive report.
-
-⸻
-
-9. Security services
-
-Detect major Azure security capabilities where possible, including:
-
+* Management Groups
+* Azure Policy
+* RBAC
 * Microsoft Defender for Cloud
-* Defender plans by subscription
-* Microsoft Sentinel workspaces
-* Key Vault usage
-* Managed identities
-* Private endpoints
-* Public IP exposure
-
-Do not make security judgments without sufficient evidence.
-
-For example, do not label a subscription “secure” simply because Defender for Cloud is enabled.
-
-Use factual descriptions.
-
-⸻
-
-Normalized data model
-
-Create normalized JSON files under:
-
-data/normalized/
-
-Prefer a structure that includes files such as:
-
-tenant.json
-management_groups.json
-subscriptions.json
-resources.json
-networking.json
-governance.json
-security.json
-summary.json
-
-Create a high-level summary.json containing report-ready metrics.
-
-Example:
-
-{
-  "tenant": {
-    "tenantId": "...",
-    "displayName": "..."
-  },
-  "counts": {
-    "managementGroups": 0,
-    "subscriptions": 0,
-    "resourceGroups": 0,
-    "resources": 0,
-    "regions": 0
-  },
-  "networking": {
-    "vnets": 0,
-    "subnets": 0,
-    "peerings": 0,
-    "privateEndpoints": 0,
-    "publicIps": 0,
-    "azureFirewalls": 0,
-    "expressRouteCircuits": 0
-  },
-  "governance": {
-    "policyAssignments": 0,
-    "policyExemptions": 0
-  },
-  "security": {}
-}
-
-Use actual discovered values.
-
-⸻
-
-Architecture diagrams
-
-Generate multiple diagrams rather than one enormous diagram.
-
-Diagram 1 — Executive Azure governance architecture
-
-Produce:
-
-output/diagrams/azure-executive-architecture.svg
-output/diagrams/azure-executive-architecture.png
-
-This diagram should be optimized for PowerPoint and senior-management consumption.
-
-It should show approximately:
-
-Microsoft Entra / Azure Tenant
-             |
-     Tenant Root Group
-             |
-      Management Groups
-             |
-   Major environment groups
-             |
-   Subscription summaries
-
-Do NOT display hundreds of subscription/resource nodes if that makes the diagram unreadable.
-
-Where necessary, collapse subscriptions into counts.
-
-Example:
-
-Production
-12 subscriptions
-2,431 resources
-
-Use visually differentiated node types for:
-
-* Tenant
-* Management group
-* Subscription group/count
-
-Keep the appearance professional and restrained.
-
-Use Graphviz automatic layout.
-
-Prefer SVG as the canonical artifact because it scales cleanly in PowerPoint.
-
-⸻
-
-Diagram 2 — Complete management-group hierarchy
-
-Generate:
-
-output/diagrams/management-group-hierarchy.svg
-output/diagrams/management-group-hierarchy.png
-
-Show every discovered management group and subscription.
-
-Use:
-
-* rectangles for management groups
-* rounded rectangles for subscriptions
-* clear directional hierarchy
-* subscription name
-* optionally abbreviated subscription ID
-
-Allow the diagram to become large because this is an engineering/reference artifact.
-
-Do not truncate the hierarchy.
-
-⸻
-
-Diagram 3 — Subscription/environment view
-
-Create a diagram grouping subscriptions by:
-
-Production
-NonProduction
-Development
-Platform
-Sandbox
-Unknown
-
-if enough reliable classification data exists.
-
-This diagram should make it easy to understand how the estate is distributed.
-
-⸻
-
-Diagram 4 — High-level Azure network architecture
-
-Generate a topology diagram only from relationships that can be reliably discovered.
-
-Focus on major topology:
-
-ExpressRoute / VPN
-        |
-Hub / Virtual WAN
-        |
-Firewall
-        |
-VNets / Spokes
-        |
-Private Endpoints / Workloads
-
-The actual diagram must reflect discovered Azure resources.
-
-Do NOT manufacture a hub-and-spoke topology merely because it is common.
-
-Infer relationships using actual configuration such as:
-
-* peerings
-* gateways
-* virtual hubs
-* route relationships
-* firewall placement
-* subnet associations
-
-If automatic topology discovery is incomplete, generate a conservative network inventory diagram instead and state the limitation.
-
-⸻
-
-Mermaid documentation
-
-Also create:
-
-output/reports/architecture.md
-
-Include Mermaid diagrams where appropriate.
-
-The Markdown document should render correctly in GitHub.
-
-Do not make Mermaid the only graphical output because PowerPoint-ready SVG/PNG is required.
-
-⸻
-
-Plotly dashboard
-
-Generate a professional self-contained HTML report:
-
-output/reports/azure-estate-report.html
-
-The report should work locally in a browser.
-
-Prefer embedding Plotly JavaScript so the report does not require public Internet access.
-
-The report should contain sections including:
+* Microsoft Sentinel
+* Key Vault
+* Managed Identities
+* Private Endpoints
+
+Ask me targeted questions about how the major security and governance services are used before writing their final descriptions.
+
+Do not produce detailed user-level RBAC listings.
+
+10. Summary statistics
+
+Include a concise set of useful metrics, such as:
+
+* Number of management groups
+* Number of subscriptions
+* Number of resource groups
+* Approximate total resource count
+* Number of Azure regions in use
+* Number of VNets
+* Number of Private Endpoints
+* Number of Azure Firewalls
+* Number of ExpressRoute circuits
+* Number of Log Analytics workspaces
+* Number of Sentinel workspaces
+* Number of Key Vaults
+* Number of VMs
+* Number of major PaaS services
+* Number of approved Azure services
+* Number of approved services currently deployed
+* Number of approved services not currently deployed
+
+Use Plotly charts for useful visualizations such as:
+
+* Resources by subscription
+* Resources by major Azure service
+* Resources by Azure region
+* Subscriptions by management group
+
+Do not overload the report with charts.
+
+11. Final HTML report
+
+Produce a clean self-contained HTML report with approximately these sections:
+
+Azure Architecture Overview
 
 Executive Summary
 
-Display prominent metrics such as:
+A short narrative explaining the overall architecture of the Azure tenant.
 
-Management Groups
-Subscriptions
-Resource Groups
-Resources
-Azure Regions
-VNets
-Private Endpoints
-Policy Assignments
+Tenant and Subscription Organization
 
-Use large statistic cards.
+Management-group/subscription architecture diagram and explanation.
 
-⸻
+Azure Services Currently in Use
 
-Azure Organization
+For each major deployed service, include:
 
-Include:
+* Service name
+* Deployment footprint
+* Where it is deployed
+* How we use it
+* What it supports
+* Its architectural role
+* Approval status where relevant
 
-* tenant information
-* management-group summary
-* subscriptions by management group
-* subscriptions by environment
+Base the usage descriptions primarily on my answers to your interview questions.
 
-Charts may include:
+Approved Azure Services
 
-* subscription count by management group
-* resource count by management group
-* resources by subscription
+Create a clear list or table of all Azure services I identify as currently approved for organizational use.
 
-⸻
+Include columns such as:
 
-Resource Estate
+* Azure service
+* Approved
+* Currently deployed
+* Deployment footprint, if deployed
+* Notes, if I provide them
 
-Include charts such as:
+Clearly distinguish:
 
-* Top 20 Azure resource types
-* Resources by subscription
-* Resources by region
-* Resource groups by subscription
-* Resources by environment
+* Approved and deployed
+* Approved but not currently deployed
 
-Use Plotly charts with useful hover information.
+If deployed services are not found in the approved-services list, put them in a separate review section rather than labeling them unauthorized.
 
-⸻
+Network Architecture
 
-Networking
+Simplified network architecture diagram and brief explanation.
 
-Include statistics/charts for:
+Security and Governance
 
-* VNets
-* subnets
-* peerings
-* private endpoints
-* public IPs
-* firewalls
-* NSGs
-* route tables
-* ExpressRoute
-* VPN
-* Application Gateways
-* load balancers
+High-level overview of governance and security controls visible in Azure, supplemented by my explanation of how they are used operationally.
 
-Where practical, provide tables listing key resources.
+Azure Estate at a Glance
 
-⸻
+A few useful charts and statistics.
 
-Compute and Platform
+Architectural Observations
 
-Provide high-level counts for major compute/platform services.
+List significant architectural patterns or observations derived from both the Azure data and my answers.
 
-Avoid making the dashboard excessively long.
+Do not present recommendations unless I specifically ask for them.
 
-Prioritize architectural relevance.
+This report should primarily describe what exists today, how it is organized, how we use it, and which Azure services are currently approved for use.
 
-⸻
+Presentation assets
 
-Governance
+Also export the main diagrams as SVG or high-resolution PNG files so I can place them directly into PowerPoint.
 
-Provide:
+At minimum generate:
 
-* policy assignment counts
-* policy scope breakdown
-* management-group versus subscription policy assignments
-* policy exemptions
-* compliance data where available
+* tenant-management-group-subscription.svg
+* azure-network-overview.svg
+* azure-services-overview.svg
 
-Use precise language.
+Keep the diagrams visually simple enough for senior-management presentations.
 
-⸻
-
-Security
-
-Provide factual security posture information that can be derived from Azure data.
-
-Examples:
-
-Subscriptions with Defender plans enabled
-Sentinel workspaces
-Key Vault count
-Managed identities
-Private endpoint count
-Public IP count
-
-Avoid unsupported conclusions.
-
-⸻
-
-Data Tables
-
-At the end of the HTML report, provide searchable or sortable tables where practical for:
-
-* subscriptions
-* management groups
-* resource counts
-* major networking resources
-
-Do not embed every Azure resource in the main HTML if it makes the report excessively large.
-
-Detailed exports can be placed separately under:
-
-output/data/
-
-⸻
-
-PowerPoint-ready chart images
-
-In addition to interactive Plotly charts, export PNG images suitable for inserting into PowerPoint.
-
-Generate charts such as:
-
-resources-by-subscription.png
-resources-by-region.png
-resources-by-type.png
-subscriptions-by-management-group.png
-resources-by-management-group.png
-resources-by-environment.png
-network-resource-summary.png
-
-Use high resolution.
-
-Use readable fonts and dimensions appropriate for 16:9 presentation slides.
-
-Avoid tiny labels.
-
-For charts with many categories, limit displayed categories sensibly and group the remainder as Other if mathematically appropriate.
-
-Never silently omit data.
-
-⸻
-
-Executive-report design principles
-
-Assume the senior-management presentation audience is technically knowledgeable but does not need raw Azure inventory.
-
-Use this hierarchy:
-
-Tenant
-→ Governance structure
-→ Subscription organization
-→ Major platform architecture
-→ Networking
-→ Security/governance
-→ Workload/resource footprint
-
-Do not clutter executive diagrams with resource-level details.
-
-The goal should be:
-
-Within 30 seconds, a senior leader should understand how the Azure environment is organized.
-
-Detailed implementation information belongs in engineering/reference diagrams and tables.
-
-⸻
-
-Configuration
-
-Create:
-
-config/report-config.json
-
-Use it for settings such as:
-
-{
-  "organizationName": "",
-  "reportTitle": "Azure Enterprise Architecture",
-  "executiveDiagramMaxDepth": 4,
-  "showSubscriptionIds": false,
-  "subscriptionIdDisplayLength": 8,
-  "topResourceTypes": 20,
-  "topSubscriptions": 20,
-  "environmentRules": []
-}
-
-Add useful options if necessary.
-
-Do not hard-code organization-specific names into Python.
-
-⸻
-
-Environment classification
-
-Implement configurable subscription classification.
-
-For example:
-
-"environmentRules": [
-  {
-    "name": "Production",
-    "patterns": ["prod", "production"]
-  },
-  {
-    "name": "Development",
-    "patterns": ["dev", "development"]
-  },
-  {
-    "name": "Test",
-    "patterns": ["test", "qa", "uat"]
-  },
-  {
-    "name": "Sandbox",
-    "patterns": ["sandbox", "lab"]
-  }
-]
-
-Prefer explicit tags if available.
-
-Suggested classification precedence:
-
-1. Explicit Azure subscription/resource tags
-2. Configured exact mappings
-3. Configured regex/name patterns
-4. Unknown
-
-Do not guess beyond configured rules.
-
-⸻
-
-Output data exports
-
-Generate CSV files useful for analysts:
-
-output/data/subscriptions.csv
-output/data/management-groups.csv
-output/data/resource-summary.csv
-output/data/network-summary.csv
-output/data/policy-summary.csv
-
-Optionally create:
-
-resources.csv
-
-if resource volume is manageable.
-
-⸻
-
-Error handling
-
-Handle common conditions cleanly:
-
-* Azure CLI not installed
-* Python not installed
-* Graphviz not installed
-* Azure CLI session expired
-* Azure Resource Graph extension missing
-* insufficient permissions
-* no management-group access
-* malformed API response
-* empty Resource Graph result
-* individual subscription inaccessible
-* unsupported Azure resource type
-
-Provide actionable error messages.
-
-For optional datasets, warn rather than terminating the whole process.
-
-Example:
-
-WARNING: Policy compliance could not be queried due to insufficient permissions.
-The remainder of the architecture report will continue.
-
-⸻
-
-Security requirements
-
-Never collect or display:
-
-* Key Vault secret values
-* Storage account keys
-* SAS tokens
-* database passwords
-* connection strings
-* client secrets
-* certificates/private keys
-* OAuth tokens
-* Azure CLI access tokens
-
-Resource IDs, tenant IDs, subscription IDs, object IDs, management-group IDs, resource names, IP addresses, and architecture metadata may be included because the report is intended for authorized internal use.
-
-⸻
-
-Code quality
+Implementation
 
 Use:
 
-* functions
-* clear modules
-* type hints in Python
-* structured logging
-* comments where logic is non-obvious
-* meaningful variable names
-* exception handling
-* reusable functions
-
-Avoid one giant Python file if the implementation becomes substantial.
-
-If appropriate, restructure Python into something like:
-
-azure_report/
-    __init__.py
-    models.py
-    normalize.py
-    diagrams.py
-    charts.py
-    html_report.py
-    markdown_report.py
-
-Use your judgment.
-
-⸻
-
-README
-
-Create a complete README containing:
-
-Purpose
-
-Explain that this repository automatically generates architecture and inventory documentation from Azure.
-
-Prerequisites
-
-Document:
-
 * Azure CLI
+* Azure Resource Graph
 * Python
-* Graphviz
-* required Python packages
-* Azure Resource Graph CLI support
+* Graphviz or Mermaid
+* Plotly
 
-Authentication
+Keep the implementation lightweight.
 
-Explain:
+I do not need a full enterprise CMDB or extensive data warehouse.
 
-az login
+The goal is to automatically inspect the tenant, obtain organizational context from me where Azure cannot provide it, and generate a current architectural briefing.
 
-Do not recommend storing credentials in source code.
+Required workflow
 
-Installation
+Follow this sequence:
 
-Example:
+1. Inspect the Azure tenant structure.
+2. Query the major Azure resource types currently deployed.
+3. Group them into meaningful Azure services.
+4. Identify likely architectural patterns.
+5. Present me with a concise discovery summary.
+6. Ask me to provide the authoritative list of currently approved Azure services.
+7. Compare the approved-services list with the services discovered in Azure.
+8. Ask me targeted questions about how the major deployed services and architectural components are actually used.
+9. Incorporate my answers.
+10. Ask follow-up questions only where necessary to resolve important ambiguity.
+11. Generate the HTML report and architecture diagrams.
+12. Export PowerPoint-ready visuals.
 
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-
-Run
-
-.\scripts\Build-AzureBriefing.ps1
-
-Outputs
-
-Explain every major artifact.
-
-Permissions
-
-Document the Azure read permissions needed for basic inventory and any optional additional permissions for governance/security information.
-
-Use least privilege.
-
-Troubleshooting
-
-Include common errors.
-
-⸻
-
-Development approach
-
-Do not attempt to write the entire system blindly in one enormous response.
-
-Work through the repository systematically.
-
-First:
-
-1. Analyze the requirements.
-2. Propose the final architecture.
-3. Show me the proposed repository/file structure.
-4. Identify Azure CLI commands, Resource Graph queries, APIs, and Python libraries you intend to use.
-5. Identify anything that cannot reliably be discovered automatically.
-6. Identify potential permission requirements.
-7. Identify technical assumptions.
-
-Then begin implementing the project.
-
-As you create each file:
-
-* provide complete working code
-* ensure imports match requirements.txt
-* ensure paths are consistent
-* ensure PowerShell calls match Python interfaces
-* ensure generated filenames match the README
-* check for syntax/interface inconsistencies
-
-Do not leave pseudocode unless explicitly marked as an optional future enhancement.
-
-⸻
-
-Validation
-
-Build validation into the project.
-
-After collection, report basic sanity checks such as:
-
-Tenant discovered: yes
-Management groups: 14
-Subscriptions: 37
-Resources: 8,421
-Resources without subscription mapping: 0
-Subscriptions without management-group mapping: 2
-
-Warn about inconsistencies.
-
-Do not silently discard unmapped objects.
-
-Create an optional:
-
-output/reports/data-quality-report.txt
-
-showing:
-
-* unmapped subscriptions
-* unknown environments
-* missing management-group relationships
-* failed queries
-* inaccessible subscriptions
-* other collection anomalies
-
-⸻
-
-Reproducibility
-
-The generated report should include:
-
-Report generated:
-Tenant:
-Authenticated account:
-Azure cloud:
-Inventory timestamp:
-Tool version/git commit if available:
-
-This makes the architecture artifact traceable to a particular point in time.
-
-⸻
-
-Future extensibility
-
-Design the architecture so future modules can be added for:
-
-* Azure cost analysis
-* Defender for Cloud recommendations
-* Azure Policy compliance
-* resource tagging compliance
-* Azure Monitor coverage
-* backup coverage
-* disaster recovery
-* network flow analysis
-* subscription vending
-* landing-zone compliance
-* Azure Arc
-* Entra ID architecture
-
-Do not implement all of those now unless required for the core solution.
-
-Design for them.
-
-⸻
-
-Most important requirement
-
-The result must not merely be a collection of scripts.
-
-Build this as a coherent:
-
-Azure Architecture Reporting System
-
-Azure should remain the source of truth.
-
-The workflow should be:
-
-Azure
-   ↓
-Automated collection
-   ↓
-Normalized architecture model
-   ↓
-Multiple renderers
-   ├── Executive diagram
-   ├── Engineering diagram
-   ├── HTML dashboard
-   ├── Markdown documentation
-   ├── PNG/SVG presentation assets
-   └── CSV/JSON engineering data
-
-The same underlying normalized dataset should drive all artifacts wherever practical.
-
-This is important because I do not want different diagrams or reports to drift out of sync.
-
-Start by designing the solution architecture and repository structure. Then implement it file-by-file.
+Do not generate the final management-facing report until I have provided the approved-services list and answered the relevant service-usage questions.
